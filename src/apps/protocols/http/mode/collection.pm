@@ -411,7 +411,31 @@ sub parse_txt {
 
     return $local;
 }
+sub traverse_hash {
+    my ($self, $search, $data) = @_;
+    if ($search !~ /\./) {
+        #last run or found nothing
+        if (defined ($data->{$search})){
+                   return $data->{$search};
+           }else{
+                   return "";
+        }
+    }
+    my $key="";
+    my @parts=[];
+    my $ref="";
+    @parts=split(/\./, $search);
+    $key=shift(@parts);
+    $ref=ref($data->{$key});
+    if ($ref eq "HASH") {
+        #need to go deeper
+        return $self->traverse_hash(join(".", @parts), $data->{$key});
+    }else{
+        #whoa, strange things happen here
+        return "";
+    }
 
+}
 sub parse_structure {
     my ($self, %options) = @_;
 
@@ -470,17 +494,10 @@ sub parse_structure {
             }
 
             my $ref = ref($value);
-            if ($ref eq 'HASH') {
-
+           if ($ref eq 'HASH') {
                 if (!defined($value->{ $_->{id} })) {
-                    # Check and assume in case of hash reference first part is the hash ref and second the hash key
-                    if($_->{id} =~ /^(.+?)\.(.*)$/){
-                        if (!defined($value->{$1}->{$2})) {
-                            $entry->{ $_->{id} } = '';
-                            next;
-                        }else{
-                            $entry->{ $_->{id} } = $value->{$1}->{$2};
-                        }
+                    if($_->{id} =~ /\./){
+                        $entry->{ $_->{id} }=$self->traverse_hash($_->{id}, $value);
                     }else {
                         $entry->{ $_->{id} } = '';
                         next;
